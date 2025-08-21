@@ -1,0 +1,36 @@
+@model IEnumerable<IntelligenceTaskTracker.Web.Models.User>
+@{
+    ViewData["Title"] = "Usuarios";
+}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2>Usuarios</h2>
+    <a asp-action="Create" class="btn btn-primary">Nuevo Usuario</a>
+</div>
+@if (!string.IsNullOrEmpty(ViewBag.CannotDeleteMessage))
+{
+    <div class="alert alert-warning">@ViewBag.CannotDeleteMessage</div>
+}
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Nombre</th>
+            <th>Fecha de alta</th>
+            <th style="width:150px"></th>
+        </tr>
+    </thead>
+    <tbody>
+    @foreach (var u in Model)
+    {
+        <tr>
+            <td>@u.Name</td>
+            <td>@u.CreatedAt.ToLocalTime().ToString("g")</td>
+            <td>
+                <a asp-action="Edit" asp-route-id="@u.Id" class="btn btn-sm btn-secondary">Editar</a>
+                <form asp-action="Delete" asp-route-id="@u.Id" method="post" class="d-inline">
+                    <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('¿Eliminar usuario?');">Eliminar</button>
+                </form>
+            </td>
+        </tr>
+    }
+    </tbody>
+</table>

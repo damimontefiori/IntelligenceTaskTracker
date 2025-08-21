@@ -1,0 +1,54 @@
+@model IntelligenceTaskTracker.Web.ViewModels.ByResourceViewModel
+@{
+    ViewData["Title"] = "Por Recurso";
+    var users = ViewBag.Users as List<IntelligenceTaskTracker.Web.Models.User>;
+}
+<h2>Por Recurso</h2>
+<form method="get" class="mb-3">
+    <div class="row g-2 align-items-end">
+        <div class="col-auto">
+            <label for="userId" class="form-label">Filtrar por responsable</label>
+            <select id="userId" name="userId" class="form-select">
+                <option value="">-- Todos --</option>
+                @if (users != null)
+                {
+                    foreach (var u in users)
+                    {
+                        <option value="@u.Id" selected="@(Model.FilterUserId == u.Id)">@u.Name</option>
+                    }
+                }
+            </select>
+        </div>
+        <div class="col-auto">
+            <button type="submit" class="btn btn-primary">Filtrar</button>
+        </div>
+    </div>
+</form>
+<div class="row g-3">
+@foreach (var grp in Model.Groups)
+{
+    <div class="col-md-3">
+        <div class="card h-100">
+            <div class="card-header fw-bold">@grp.GroupName</div>
+            <div class="card-body">
+                @if (grp.Tasks.Count == 0)
+                {
+                    <div class="text-muted">Sin tareas</div>
+                }
+                else
+                {
+                    <ul class="list-group list-group-flush">
+                    @foreach (var t in grp.Tasks)
+                    {
+                        <li class="list-group-item p-2">
+                            <div class="small text-muted">@t.Status - @t.CreatedAt.ToLocalTime().ToString("g")</div>
+                            <div><a asp-controller="Tasks" asp-action="Details" asp-route-id="@t.Id">@t.Title</a></div>
+                        </li>
+                    }
+                    </ul>
+                }
+            </div>
+        </div>
+    </div>
+}
+</div>

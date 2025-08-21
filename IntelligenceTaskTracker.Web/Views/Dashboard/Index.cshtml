@@ -1,0 +1,34 @@
+@model IntelligenceTaskTracker.Web.ViewModels.KanbanBoardViewModel
+@{
+    ViewData["Title"] = "Dashboard";
+}
+<h2>Dashboard (Kanban)</h2>
+<div class="row g-3">
+@foreach (var col in Model.Columns)
+{
+    <div class="col-md-3">
+        <div class="card h-100">
+            <div class="card-header fw-bold">@col.Title</div>
+            <div class="card-body">
+                @if (col.Tasks.Count == 0)
+                {
+                    <div class="text-muted">Sin tareas</div>
+                }
+                else
+                {
+                    <ul class="list-group list-group-flush">
+                    @foreach (var t in col.Tasks)
+                    {
+                        <li class="list-group-item p-2">
+                            <div class="small text-muted">@t.CreatedAt.ToLocalTime().ToString("g")</div>
+                            <div><a asp-controller="Tasks" asp-action="Details" asp-route-id="@t.Id">@t.Title</a></div>
+                            <div class="text-muted">@((t.ResponsibleUser?.Name) ?? "—")</div>
+                        </li>
+                    }
+                    </ul>
+                }
+            </div>
+        </div>
+    </div>
+}
+</div>

@@ -1,0 +1,39 @@
+@model IEnumerable<IntelligenceTaskTracker.Web.Models.TaskItem>
+@using IntelligenceTaskTracker.Web.Models
+@{
+    ViewData["Title"] = "Tareas";
+}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2>Tareas</h2>
+    <a asp-action="Create" class="btn btn-primary">Nueva Tarea</a>
+</div>
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Título</th>
+            <th>Responsable</th>
+            <th>Estado</th>
+            <th>Creación</th>
+            <th>Fecha Límite</th>
+            <th style="width:180px"></th>
+        </tr>
+    </thead>
+    <tbody>
+    @foreach (var t in Model)
+    {
+        <tr>
+            <td><a asp-action="Details" asp-route-id="@t.Id">@t.Title</a></td>
+            <td>@(t.ResponsibleUser?.Name ?? "—")</td>
+            <td>@t.Status</td>
+            <td>@t.CreatedAt.ToLocalTime().ToString("g")</td>
+            <td>@(t.DueDate?.ToLocalTime().ToString("d") ?? "—")</td>
+            <td>
+                <a asp-action="Edit" asp-route-id="@t.Id" class="btn btn-sm btn-secondary">Editar</a>
+                <form asp-action="Delete" asp-route-id="@t.Id" method="post" class="d-inline">
+                    <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('¿Eliminar tarea?');">Eliminar</button>
+                </form>
+            </td>
+        </tr>
+    }
+    </tbody>
+</table>

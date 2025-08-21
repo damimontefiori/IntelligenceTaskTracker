@@ -1,0 +1,41 @@
+@model IntelligenceTaskTracker.Web.Models.TaskItem
+@using IntelligenceTaskTracker.Web.Models
+@{
+    ViewData["Title"] = "Nueva Tarea";
+}
+<h2>Nueva Tarea</h2>
+<hr />
+<form asp-action="Create" method="post" class="mt-3">
+    <div class="mb-3">
+        <label asp-for="Title" class="form-label"></label>
+        <input asp-for="Title" class="form-control" />
+        <span asp-validation-for="Title" class="text-danger"></span>
+    </div>
+    <div class="mb-3">
+        <label asp-for="Description" class="form-label"></label>
+        <textarea asp-for="Description" class="form-control" rows="3"></textarea>
+        <span asp-validation-for="Description" class="text-danger"></span>
+    </div>
+    <div class="row">
+        <div class="col-md-4 mb-3">
+            <label asp-for="ResponsibleUserId" class="form-label">Responsable</label>
+            <select asp-for="ResponsibleUserId" class="form-select" asp-items="ViewBag.Users">
+                <option value="">-- Sin asignar --</option>
+            </select>
+            <span asp-validation-for="ResponsibleUserId" class="text-danger"></span>
+        </div>
+        <div class="col-md-4 mb-3">
+            <label asp-for="Status" class="form-label">Estado</label>
+            <select asp-for="Status" class="form-select" asp-items="ViewBag.Statuses"></select>
+        </div>
+        <div class="col-md-4 mb-3">
+            <label asp-for="DueDate" class="form-label">Fecha límite</label>
+            <input asp-for="DueDate" type="date" class="form-control" />
+        </div>
+    </div>
+    <button type="submit" class="btn btn-primary">Guardar</button>
+    <a asp-action="Index" class="btn btn-link">Cancelar</a>
+</form>
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}
