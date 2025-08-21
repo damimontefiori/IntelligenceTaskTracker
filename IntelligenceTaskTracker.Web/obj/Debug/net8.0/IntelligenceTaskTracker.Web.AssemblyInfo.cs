@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("IntelligenceTaskTracker.Web")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+34ab7435f6c323f5487b5479ea7c6196bc3e6282")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+63f6f4bc8ad91d0dc149fb62ac0aac2e1a8b56c0")]
 [assembly: System.Reflection.AssemblyProductAttribute("IntelligenceTaskTracker.Web")]
 [assembly: System.Reflection.AssemblyTitleAttribute("IntelligenceTaskTracker.Web")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

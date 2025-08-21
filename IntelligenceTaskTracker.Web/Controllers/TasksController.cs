@@ -21,7 +21,7 @@ public class TasksController(AppDbContext db) : Controller
     }
 
     // GET: /Tasks/Details/5
-    public async Task<IActionResult> Details(int id)
+    public async Task<IActionResult> Details(int id, string? returnUrl = null)
     {
         var task = await db.Tasks
             .Include(t => t.ResponsibleUser)
@@ -30,6 +30,26 @@ public class TasksController(AppDbContext db) : Controller
         if (task == null) return NotFound();
         // Ordenar comentarios por fecha desc (recientes primero)
         task.Comments = task.Comments.OrderByDescending(c => c.CreatedAt).ToList();
+
+        // Preservar URL de origen si es local (y evitar loop a Details)
+        string? resolvedReturnUrl = returnUrl;
+        if (string.IsNullOrWhiteSpace(resolvedReturnUrl))
+        {
+            var referer = Request.Headers.Referer.ToString();
+            if (!string.IsNullOrWhiteSpace(referer) && Uri.TryCreate(referer, UriKind.Absolute, out var uri))
+            {
+                if (string.Equals(uri.Host, Request.Host.Host, StringComparison.OrdinalIgnoreCase))
+                {
+                    var local = uri.PathAndQuery;
+                    if (Url.IsLocalUrl(local) && !local.StartsWith($"/Tasks/Details/{id}", StringComparison.OrdinalIgnoreCase))
+                    {
+                        resolvedReturnUrl = local;
+                    }
+                }
+            }
+        }
+        ViewBag.ReturnUrl = resolvedReturnUrl;
+
         return View(task);
     }
 
@@ -79,27 +99,32 @@ public class TasksController(AppDbContext db) : Controller
     }
 
     // GET: /Tasks/Edit/5
-    public async Task<IActionResult> Edit(int id)
+    public async Task<IActionResult> Edit(int id, string? returnUrl)
     {
         var task = await db.Tasks
             .Include(t => t.Comments)
             .FirstOrDefaultAsync(t => t.Id == id);
         if (task == null) return NotFound();
         await PopulateDropdownsAsync();
-        // Orden descendente para mostrar en edición
         task.Comments = task.Comments.OrderByDescending(c => c.CreatedAt).ToList();
+        if (!string.IsNullOrWhiteSpace(returnUrl) && Url.IsLocalUrl(returnUrl))
+        {
+            ViewBag.ReturnUrl = returnUrl;
+        }
         return View(task);
     }
 
     // POST: /Tasks/Edit/5
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Edit(int id, [Bind("Id,Title,Description,DueDate,ResponsibleUserId,Status")] TaskItem input)
+    public async Task<IActionResult> Edit(int id, [Bind("Id,Title,Description,DueDate,ResponsibleUserId,Status")] TaskItem input, string? returnUrl)
     {
         if (id != input.Id) return BadRequest();
         if (!ModelState.IsValid)
         {
             await PopulateDropdownsAsync();
+            if (!string.IsNullOrWhiteSpace(returnUrl) && Url.IsLocalUrl(returnUrl))
+                ViewBag.ReturnUrl = returnUrl;
             return View(input);
         }
 
@@ -113,6 +138,8 @@ public class TasksController(AppDbContext db) : Controller
             {
                 ModelState.AddModelError(nameof(TaskItem.ResponsibleUserId), "Usuario seleccionado no existe.");
                 await PopulateDropdownsAsync();
+                if (!string.IsNullOrWhiteSpace(returnUrl) && Url.IsLocalUrl(returnUrl))
+                    ViewBag.ReturnUrl = returnUrl;
                 return View(input);
             }
         }
@@ -127,6 +154,9 @@ public class TasksController(AppDbContext db) : Controller
         await db.SaveChangesAsync();
         var @new = ($"Title='{task.Title}', Status={task.Status}, Responsible={task.ResponsibleUserId?.ToString() ?? "null"}, Due={task.DueDate?.ToString("o") ?? "null"}");
         await LogAuditAsync("TaskItem", task.Id, "Updated", $"{old} -> {@new}");
+
+        if (!string.IsNullOrWhiteSpace(returnUrl) && Url.IsLocalUrl(returnUrl))
+            return Redirect(returnUrl);
         return RedirectToAction(nameof(Index));
     }
 
@@ -146,20 +176,31 @@ public class TasksController(AppDbContext db) : Controller
     // POST: /Tasks/AddComment/5
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> AddComment(int id, string createdBy, string comment)
+    public async Task<IActionResult> AddComment(int id, string createdBy, string comment, string? returnUrl)
     {
-        var task = await db.Tasks.FindAsync(id);
-        if (task == null) return NotFound();
-
         if (string.IsNullOrWhiteSpace(createdBy))
             ModelState.AddModelError(nameof(createdBy), "Ingrese su nombre.");
         if (string.IsNullOrWhiteSpace(comment))
             ModelState.AddModelError(nameof(comment), "El comentario es obligatorio.");
 
+        // Sanitizar returnUrl para que sea siempre local
+        string? sanitizedReturnUrl = null;
+        if (!string.IsNullOrWhiteSpace(returnUrl) && Url.IsLocalUrl(returnUrl))
+        {
+            sanitizedReturnUrl = returnUrl;
+        }
+
         if (!ModelState.IsValid)
         {
-            // Re-render Details with current task and ModelState errors
-            return await Details(id);
+            // Re-render Details with current task and ModelState errors, preserving returnUrl
+            var taskVm = await db.Tasks
+                .Include(t => t.ResponsibleUser)
+                .Include(t => t.Comments)
+                .FirstOrDefaultAsync(t => t.Id == id);
+            if (taskVm == null) return NotFound();
+            taskVm.Comments = taskVm.Comments.OrderByDescending(c => c.CreatedAt).ToList();
+            ViewBag.ReturnUrl = sanitizedReturnUrl;
+            return View("Details", taskVm);
         }
 
         var entry = new TaskComment
@@ -172,7 +213,7 @@ public class TasksController(AppDbContext db) : Controller
         db.TaskComments.Add(entry);
         await db.SaveChangesAsync();
         await LogAuditAsync("TaskItem", id, "Commented", $"By='{entry.CreatedBy}', Len={entry.Comment.Length}");
-        return RedirectToAction(nameof(Details), new { id });
+        return RedirectToAction(nameof(Details), new { id, returnUrl = sanitizedReturnUrl });
     }
 
     private async Task PopulateDropdownsAsync()

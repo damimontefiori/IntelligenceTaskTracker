@@ -42,6 +42,7 @@
     <h4>Agregar comentario</h4>
     <form asp-action="AddComment" method="post">
         <input type="hidden" name="id" value="@Model.Id" />
+        <input type="hidden" name="returnUrl" value="@ViewBag.ReturnUrl" />
         <div asp-validation-summary="ModelOnly" class="text-danger"></div>
         <div class="mb-3">
             <label for="createdBy" class="form-label">Tu nombre</label>
@@ -56,8 +57,8 @@
   </div>
 </div>
 
-<a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-secondary mt-3">Editar</a>
-<a asp-action="Index" class="btn btn-link mt-3">Volver</a>
+<a asp-action="Edit" asp-route-id="@Model.Id" asp-route-returnUrl="@ViewBag.ReturnUrl" class="btn btn-secondary mt-3">Editar</a>
+<a href="@(ViewBag.ReturnUrl ?? Url.Action("Index", "Tasks"))" class="btn btn-link mt-3">Volver</a>
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />

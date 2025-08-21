@@ -20,6 +20,7 @@
 - En la vista Detalles, el campo "Tu nombre" se autocompleta con el nombre del responsable de la tarea (si existe).
 - Los comentarios se muestran ordenados de más reciente a más antiguo.
 - En la vista Edición de tarea, se muestran los comentarios en modo solo lectura (no editables ni eliminables).
+- Al navegar al detalle de una tarea desde otra vista (lista o dashboard), el botón "Volver" debe regresar a la vista anterior conservando filtros y parámetros (se implementa pasando un returnUrl local y usando fallback al índice si no existe).
 
 ## 4. Visualización tipo Dashboard
 - Vista principal tipo Kanban, mostrando las tareas por estado en columnas (`Not Assigned`, `New`, `In Progress`, `Completed`).
