@@ -1,12 +1,38 @@
-@model IEnumerable<IntelligenceTaskTracker.Web.Models.TaskItem>
+@model IntelligenceTaskTracker.Web.ViewModels.TaskListViewModel
 @using IntelligenceTaskTracker.Web.Models
 @{
     ViewData["Title"] = "Tareas";
+    int totalPages = (int)Math.Ceiling((double)Model.TotalCount / Model.PageSize);
 }
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h2>Tareas</h2>
     <a asp-action="Create" class="btn btn-primary">Nueva Tarea</a>
 </div>
+<form method="get" class="row g-2 mb-3">
+    <div class="col-md-4">
+        <input type="text" name="q" value="@Model.Q" class="form-control" placeholder="Buscar por título, descripción o responsable" />
+    </div>
+    <div class="col-md-3">
+        <select name="status" class="form-select">
+            <option value="">-- Todos los estados --</option>
+            @foreach (IntelligenceTaskTracker.Web.Models.TaskStatus s in Enum.GetValues(typeof(IntelligenceTaskTracker.Web.Models.TaskStatus)))
+            {
+                <option value="@((int)s)" selected="@(Model.Status == s)">@s</option>
+            }
+        </select>
+    </div>
+    <div class="col-md-2">
+        <select name="pageSize" class="form-select">
+            @foreach (var size in new[]{10,20,50})
+            {
+                <option value="@size" selected="@(Model.PageSize == size)">@size por página</option>
+            }
+        </select>
+    </div>
+    <div class="col-md-3">
+        <button type="submit" class="btn btn-secondary">Aplicar</button>
+    </div>
+</form>
 <table class="table table-striped">
     <thead>
         <tr>
@@ -19,7 +45,7 @@
         </tr>
     </thead>
     <tbody>
-    @foreach (var t in Model)
+    @foreach (var t in Model.Items)
     {
         <tr>
             <td><a asp-action="Details" asp-route-id="@t.Id">@t.Title</a></td>
@@ -37,3 +63,22 @@
     }
     </tbody>
 </table>
+@if (totalPages > 1)
+{
+    <nav>
+        <ul class="pagination">
+            <li class="page-item @(Model.Page <= 1 ? "disabled" : null)">
+                <a class="page-link" href="@Url.Action("Index", new { q = Model.Q, status = Model.Status.HasValue ? (int?)((int)Model.Status.Value) : null, page = Model.Page - 1, pageSize = Model.PageSize })">Anterior</a>
+            </li>
+            @for (int p = 1; p <= totalPages; p++)
+            {
+                <li class="page-item @(Model.Page == p ? "active" : null)">
+                    <a class="page-link" href="@Url.Action("Index", new { q = Model.Q, status = Model.Status.HasValue ? (int?)((int)Model.Status.Value) : null, page = p, pageSize = Model.PageSize })">@p</a>
+                </li>
+            }
+            <li class="page-item @(Model.Page >= totalPages ? "disabled" : null)">
+                <a class="page-link" href="@Url.Action("Index", new { q = Model.Q, status = Model.Status.HasValue ? (int?)((int)Model.Status.Value) : null, page = Model.Page + 1, pageSize = Model.PageSize })">Siguiente</a>
+            </li>
+        </ul>
+    </nav>
+}

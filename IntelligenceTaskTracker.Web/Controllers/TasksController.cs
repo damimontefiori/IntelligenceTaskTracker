@@ -1,5 +1,6 @@
 using IntelligenceTaskTracker.Web.Data;
 using IntelligenceTaskTracker.Web.Models;
+using IntelligenceTaskTracker.Web.ViewModels;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
@@ -10,14 +11,47 @@ namespace IntelligenceTaskTracker.Web.Controllers;
 public class TasksController(AppDbContext db) : Controller
 {
     // GET: /Tasks
-    public async Task<IActionResult> Index()
+    public async Task<IActionResult> Index(string? q, TaskStatusEnum? status, int page = 1, int pageSize = 10)
     {
-        var tasks = await db.Tasks
+        if (page <= 0) page = 1;
+        if (pageSize <= 0 || pageSize > 100) pageSize = 10;
+
+        var query = db.Tasks
             .Include(t => t.ResponsibleUser)
+            .AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(q))
+        {
+            var term = q.Trim();
+            query = query.Where(t =>
+                t.Title.Contains(term) ||
+                (t.Description != null && t.Description.Contains(term)) ||
+                (t.ResponsibleUser != null && t.ResponsibleUser.Name.Contains(term))
+            );
+        }
+        if (status.HasValue)
+        {
+            query = query.Where(t => t.Status == status.Value);
+        }
+
+        var total = await query.CountAsync();
+        var items = await query
             .OrderBy(t => t.Status)
             .ThenByDescending(t => t.CreatedAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .ToListAsync();
-        return View(tasks);
+
+        var vm = new TaskListViewModel
+        {
+            Items = items,
+            Page = page,
+            PageSize = pageSize,
+            TotalCount = total,
+            Q = q,
+            Status = status.HasValue ? (IntelligenceTaskTracker.Web.Models.TaskStatus?)status.Value : null
+        };
+        return View(vm);
     }
 
     // GET: /Tasks/Details/5
@@ -214,6 +248,21 @@ public class TasksController(AppDbContext db) : Controller
         await db.SaveChangesAsync();
         await LogAuditAsync("TaskItem", id, "Commented", $"By='{entry.CreatedBy}', Len={entry.Comment.Length}");
         return RedirectToAction(nameof(Details), new { id, returnUrl = sanitizedReturnUrl });
+    }
+
+    // POST: /Tasks/ChangeStatus
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ChangeStatus(int id, TaskStatusEnum status)
+    {
+        var task = await db.Tasks.FindAsync(id);
+        if (task == null) return NotFound();
+        var old = task.Status;
+        if (task.Status == status) return Ok(new { unchanged = true });
+        task.Status = status;
+        await db.SaveChangesAsync();
+        await LogAuditAsync("TaskItem", task.Id, "Updated", $"Status: {old} -> {status}");
+        return Ok(new { ok = true });
     }
 
     private async Task PopulateDropdownsAsync()

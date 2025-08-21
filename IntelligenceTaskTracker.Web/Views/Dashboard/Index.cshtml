@@ -3,13 +3,17 @@
     ViewData["Title"] = "Dashboard";
 }
 <h2>Dashboard (Kanban)</h2>
+@Html.AntiForgeryToken()
 <div class="row g-3">
-@foreach (var col in Model.Columns)
+@for (int i = 0; i < Model.Columns.Count; i++)
 {
+    var col = Model.Columns[i];
+    // map títulos a estados
+    var statusValue = col.Title switch { "New" => (int)IntelligenceTaskTracker.Web.Models.TaskStatus.New, "In Progress" => (int)IntelligenceTaskTracker.Web.Models.TaskStatus.InProgress, "Completed" => (int)IntelligenceTaskTracker.Web.Models.TaskStatus.Completed, _ => -1 };
     <div class="col-md-3">
         <div class="card h-100">
             <div class="card-header fw-bold">@col.Title</div>
-            <div class="card-body">
+            <div class="card-body dropzone" data-status="@statusValue" ondragover="event.preventDefault()" ondrop="onDrop(event)" style="min-height: 100px;">
                 @if (col.Tasks.Count == 0)
                 {
                     <div class="text-muted">Sin tareas</div>
@@ -19,7 +23,7 @@
                     <ul class="list-group list-group-flush">
                     @foreach (var t in col.Tasks)
                     {
-                        <li class="list-group-item p-2">
+                        <li class="list-group-item p-2" draggable="@(statusValue >= 0 ? "true" : "false")" ondragstart="onDragStart(event)" data-id="@t.Id">
                             <div class="small text-muted">@t.CreatedAt.ToLocalTime().ToString("g")</div>
                             <div><a asp-controller="Tasks" asp-action="Details" asp-route-id="@t.Id">@t.Title</a></div>
                             <div class="text-muted">@((t.ResponsibleUser?.Name) ?? "—")</div>
@@ -32,3 +36,30 @@
     </div>
 }
 </div>
+
+@section Scripts {
+<script>
+let draggedId = null;
+function onDragStart(e){
+  const li = e.target.closest('[data-id]');
+  draggedId = li?.dataset.id;
+  e.dataTransfer.setData('text/plain', draggedId);
+}
+async function onDrop(e){
+  e.preventDefault();
+  const status = e.currentTarget.dataset.status;
+  if (!draggedId || status === undefined || status < 0) return;
+  try {
+    const form = new FormData();
+    form.append('id', draggedId);
+    form.append('status', status);
+    const resp = await fetch('/Tasks/ChangeStatus', { method: 'POST', body: form, headers: { 'RequestVerificationToken': getCsrf() } });
+    if (resp.ok){ location.reload(); }
+  } catch { /* noop */ }
+}
+function getCsrf(){
+  const el = document.querySelector('input[name=__RequestVerificationToken]');
+  return el ? el.value : '';
+}
+</script>
+}
