@@ -57,23 +57,40 @@ public class DashboardController(AppDbContext db) : Controller
         // Agrupar por usuario y agregar grupo Not Assigned
         var groups = new List<TasksByUserGroup>();
 
-        groups.Add(new TasksByUserGroup
+        if (!userId.HasValue)
         {
-            GroupName = "Not Assigned",
-            UserId = null,
-            Tasks = tasks.Where(t => t.ResponsibleUserId == null)
-                          .OrderBy(t => t.Status == TaskStatusEnum.New ? 0 : t.Status == TaskStatusEnum.InProgress ? 1 : 2)
-                          .ThenByDescending(t => t.CreatedAt)
-                          .ToList()
-        });
+            // Sin filtro: incluir columna Not Assigned
+            groups.Add(new TasksByUserGroup
+            {
+                GroupName = "Not Assigned",
+                UserId = null,
+                Tasks = tasks.Where(t => t.ResponsibleUserId == null)
+                              .OrderBy(t => t.Status == TaskStatusEnum.New ? 0 : t.Status == TaskStatusEnum.InProgress ? 1 : 2)
+                              .ThenByDescending(t => t.CreatedAt)
+                              .ToList()
+            });
 
-        foreach (var u in users)
+            foreach (var u in users)
+            {
+                var list = tasks.Where(t => t.ResponsibleUserId == u.Id)
+                                 .OrderBy(t => t.Status == TaskStatusEnum.New ? 0 : t.Status == TaskStatusEnum.InProgress ? 1 : 2)
+                                 .ThenByDescending(t => t.CreatedAt)
+                                 .ToList();
+                groups.Add(new TasksByUserGroup { GroupName = u.Name, UserId = u.Id, Tasks = list });
+            }
+        }
+        else
         {
-            var list = tasks.Where(t => t.ResponsibleUserId == u.Id)
-                             .OrderBy(t => t.Status == TaskStatusEnum.New ? 0 : t.Status == TaskStatusEnum.InProgress ? 1 : 2)
-                             .ThenByDescending(t => t.CreatedAt)
-                             .ToList();
-            groups.Add(new TasksByUserGroup { GroupName = u.Name, UserId = u.Id, Tasks = list });
+            // Con filtro: mostrar solo el recurso seleccionado
+            var u = users.FirstOrDefault(x => x.Id == userId.Value);
+            if (u != null)
+            {
+                var list = tasks.Where(t => t.ResponsibleUserId == u.Id)
+                                 .OrderBy(t => t.Status == TaskStatusEnum.New ? 0 : t.Status == TaskStatusEnum.InProgress ? 1 : 2)
+                                 .ThenByDescending(t => t.CreatedAt)
+                                 .ToList();
+                groups.Add(new TasksByUserGroup { GroupName = u.Name, UserId = u.Id, Tasks = list });
+            }
         }
 
         var vm = new ByResourceViewModel { Groups = groups, FilterUserId = userId };

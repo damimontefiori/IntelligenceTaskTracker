@@ -34,8 +34,29 @@
             <input asp-for="DueDate" type="date" class="form-control" />
         </div>
     </div>
-    <button type="submit" class="btn btn-primary">Guardar</button>
-    <a asp-action="Index" class="btn btn-link">Cancelar</a>
+
+    <div class="mt-4">
+        <h4>Comentarios (solo lectura)</h4>
+        @if (Model.Comments == null || !Model.Comments.Any())
+        {
+            <div class="text-muted">Sin comentarios</div>
+        }
+        else
+        {
+            <ul class="list-group">
+            @foreach (var c in Model.Comments)
+            {
+                <li class="list-group-item">
+                    <div class="small text-muted">@c.CreatedAt.ToLocalTime().ToString("g") — @c.CreatedBy</div>
+                    <div>@c.Comment</div>
+                </li>
+            }
+            </ul>
+        }
+    </div>
+
+    <button type="submit" class="btn btn-primary mt-3">Guardar</button>
+    <a asp-action="Index" class="btn btn-link mt-3">Cancelar</a>
 </form>
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />

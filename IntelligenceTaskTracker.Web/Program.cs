@@ -11,6 +11,9 @@ var connectionString = builder.Configuration.GetConnectionString("DefaultConnect
     ?? "Server=(localdb)\\MSSQLLocalDB;Database=IntelligenceTaskTracker;Trusted_Connection=True;MultipleActiveResultSets=true;";
 builder.Services.AddDbContext<AppDbContext>(options => options.UseSqlServer(connectionString));
 
+// Ensure static web assets (scoped CSS, libs) are available when running via dll or non-standard hosts
+builder.WebHost.UseStaticWebAssets();
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.

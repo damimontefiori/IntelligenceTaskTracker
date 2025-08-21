@@ -25,8 +25,11 @@ public class TasksController(AppDbContext db) : Controller
     {
         var task = await db.Tasks
             .Include(t => t.ResponsibleUser)
+            .Include(t => t.Comments)
             .FirstOrDefaultAsync(t => t.Id == id);
         if (task == null) return NotFound();
+        // Ordenar comentarios por fecha desc (recientes primero)
+        task.Comments = task.Comments.OrderByDescending(c => c.CreatedAt).ToList();
         return View(task);
     }
 
@@ -71,15 +74,20 @@ public class TasksController(AppDbContext db) : Controller
         };
         db.Tasks.Add(entity);
         await db.SaveChangesAsync();
+        await LogAuditAsync("TaskItem", entity.Id, "Created", $"Title='{entity.Title}', Status={entity.Status}");
         return RedirectToAction(nameof(Index));
     }
 
     // GET: /Tasks/Edit/5
     public async Task<IActionResult> Edit(int id)
     {
-        var task = await db.Tasks.FindAsync(id);
+        var task = await db.Tasks
+            .Include(t => t.Comments)
+            .FirstOrDefaultAsync(t => t.Id == id);
         if (task == null) return NotFound();
         await PopulateDropdownsAsync();
+        // Orden descendente para mostrar en edición
+        task.Comments = task.Comments.OrderByDescending(c => c.CreatedAt).ToList();
         return View(task);
     }
 
@@ -109,6 +117,7 @@ public class TasksController(AppDbContext db) : Controller
             }
         }
 
+        var old = ($"Title='{task.Title}', Status={task.Status}, Responsible={task.ResponsibleUserId?.ToString() ?? "null"}, Due={task.DueDate?.ToString("o") ?? "null"}");
         task.Title = input.Title.Trim();
         task.Description = string.IsNullOrWhiteSpace(input.Description) ? null : input.Description.Trim();
         task.DueDate = input.DueDate;
@@ -116,6 +125,8 @@ public class TasksController(AppDbContext db) : Controller
         task.Status = input.Status;
 
         await db.SaveChangesAsync();
+        var @new = ($"Title='{task.Title}', Status={task.Status}, Responsible={task.ResponsibleUserId?.ToString() ?? "null"}, Due={task.DueDate?.ToString("o") ?? "null"}");
+        await LogAuditAsync("TaskItem", task.Id, "Updated", $"{old} -> {@new}");
         return RedirectToAction(nameof(Index));
     }
 
@@ -128,7 +139,40 @@ public class TasksController(AppDbContext db) : Controller
         if (task == null) return NotFound();
         db.Tasks.Remove(task);
         await db.SaveChangesAsync();
+        await LogAuditAsync("TaskItem", id, "Deleted", $"Title='{task.Title}'");
         return RedirectToAction(nameof(Index));
+    }
+
+    // POST: /Tasks/AddComment/5
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> AddComment(int id, string createdBy, string comment)
+    {
+        var task = await db.Tasks.FindAsync(id);
+        if (task == null) return NotFound();
+
+        if (string.IsNullOrWhiteSpace(createdBy))
+            ModelState.AddModelError(nameof(createdBy), "Ingrese su nombre.");
+        if (string.IsNullOrWhiteSpace(comment))
+            ModelState.AddModelError(nameof(comment), "El comentario es obligatorio.");
+
+        if (!ModelState.IsValid)
+        {
+            // Re-render Details with current task and ModelState errors
+            return await Details(id);
+        }
+
+        var entry = new TaskComment
+        {
+            TaskId = id,
+            Comment = comment.Trim(),
+            CreatedBy = createdBy.Trim(),
+            CreatedAt = DateTime.UtcNow
+        };
+        db.TaskComments.Add(entry);
+        await db.SaveChangesAsync();
+        await LogAuditAsync("TaskItem", id, "Commented", $"By='{entry.CreatedBy}', Len={entry.Comment.Length}");
+        return RedirectToAction(nameof(Details), new { id });
     }
 
     private async Task PopulateDropdownsAsync()
@@ -139,5 +183,18 @@ public class TasksController(AppDbContext db) : Controller
             .Cast<TaskStatusEnum>()
             .Select(s => new SelectListItem { Value = ((int)s).ToString(), Text = s.ToString() })
             .ToList();
+    }
+
+    private async Task LogAuditAsync(string entity, int entityId, string action, string? details)
+    {
+        db.AuditLogs.Add(new AuditLogEntry
+        {
+            Entity = entity,
+            EntityId = entityId,
+            Action = action,
+            Details = details,
+            CreatedAt = DateTime.UtcNow
+        });
+        await db.SaveChangesAsync();
     }
 }
