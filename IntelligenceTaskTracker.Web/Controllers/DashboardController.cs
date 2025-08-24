@@ -1,5 +1,6 @@
 using IntelligenceTaskTracker.Web.Data;
 using IntelligenceTaskTracker.Web.Models;
+using IntelligenceTaskTracker.Web.Services.AI;
 using IntelligenceTaskTracker.Web.ViewModels;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -7,7 +8,7 @@ using TaskStatusEnum = IntelligenceTaskTracker.Web.Models.TaskStatus;
 
 namespace IntelligenceTaskTracker.Web.Controllers;
 
-public class DashboardController(AppDbContext db) : Controller
+public class DashboardController(AppDbContext db, IInsightsService? insightsService = null) : Controller
 {
     // GET: /Dashboard
     public async Task<IActionResult> Index()
@@ -96,5 +97,22 @@ public class DashboardController(AppDbContext db) : Controller
         var vm = new ByResourceViewModel { Groups = groups, FilterUserId = userId };
         ViewBag.Users = users;
         return View(vm);
+    }
+
+    // GET: /Dashboard/GetUserInsight/5?refresh=true
+    public async Task<IActionResult> GetUserInsight(int id, bool refresh = false)
+    {
+        if (insightsService == null) return Json(new { error = "Servicio IA no disponible" });
+        
+        try
+        {
+            var insight = await insightsService.GetUserInsightAsync(id, refresh);
+            if (insight == null) return Json(new { error = "Usuario no encontrado" });
+            return Json(insight);
+        }
+        catch
+        {
+            return Json(new { error = "Error obteniendo resumen IA" });
+        }
     }
 }

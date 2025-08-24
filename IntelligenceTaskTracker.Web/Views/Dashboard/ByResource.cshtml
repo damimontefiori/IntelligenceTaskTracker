@@ -24,6 +24,28 @@
         </div>
     </div>
 </form>
+
+@if (Model.FilterUserId.HasValue)
+{
+    <!-- Panel de Insights IA para el usuario filtrado -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Resumen IA del Recurso</h5>
+                    <button type="button" class="btn btn-sm btn-outline-primary" id="refreshUserInsightBtn" data-user-id="@Model.FilterUserId">
+                        <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                        Actualizar resumen
+                    </button>
+                </div>
+                <div class="card-body" id="userInsightContent">
+                    <div class="text-muted">Cargando resumen...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
 <div class="row g-3">
 @foreach (var grp in Model.Groups)
 {
@@ -52,3 +74,77 @@
     </div>
 }
 </div>
+
+@section Scripts {
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const refreshBtn = document.getElementById('refreshUserInsightBtn');
+            const insightContent = document.getElementById('userInsightContent');
+            
+            if (!refreshBtn) return; // No hay usuario filtrado
+            
+            const userId = refreshBtn.getAttribute('data-user-id');
+            const spinner = refreshBtn.querySelector('.spinner-border');
+            
+            async function loadUserInsight(refresh = false) {
+                try {
+                    spinner.classList.remove('d-none');
+                    refreshBtn.disabled = true;
+                    
+                    const response = await fetch(`@Url.Action("GetUserInsight", "Dashboard")?id=${userId}&refresh=${refresh}`);
+                    const data = await response.json();
+                    
+                    if (data.error) {
+                        insightContent.innerHTML = `<div class="alert alert-warning">${data.error}</div>`;
+                    } else {
+                        let html = `
+                            <div class="row">
+                                <div class="col-md-8">
+                                    <div class="mb-3">
+                                        <strong>Resumen:</strong> ${data.summary || 'No disponible'}
+                                    </div>
+                                    <div class="mb-3">
+                                        <strong>Estado general:</strong> 
+                                        <span class="badge ${data.overallStatus === 'off_track' ? 'bg-danger' : data.overallStatus === 'at_risk' ? 'bg-warning' : 'bg-success'}">${data.overallStatus}</span>
+                                        <strong class="ms-3">Riesgo:</strong>
+                                        <span class="badge ${data.riskLevel === 'high' ? 'bg-danger' : data.riskLevel === 'medium' ? 'bg-warning' : 'bg-success'}">${data.riskLevel}</span>
+                                    </div>`;
+                        
+                        if (data.alerts && data.alerts.length > 0) {
+                            html += '<div class="mb-3"><strong>Alertas:</strong><br>';
+                            data.alerts.forEach(alert => {
+                                const badgeClass = alert.severity === 'high' ? 'bg-danger' : alert.severity === 'medium' ? 'bg-warning' : 'bg-info';
+                                html += `<span class="badge ${badgeClass} me-1">${alert.message}</span>`;
+                            });
+                            html += '</div>';
+                        }
+                        
+                        html += '</div>';
+                        
+                        if (data.taskSummaries && data.taskSummaries.length > 0) {
+                            html += '<div class="col-md-4"><strong>Tareas clave:</strong><ul class="list-unstyled">';
+                            data.taskSummaries.slice(0, 3).forEach(task => {
+                                const riskBadge = task.riskLevel === 'high' ? 'bg-danger' : task.riskLevel === 'medium' ? 'bg-warning' : 'bg-success';
+                                html += `<li class="mb-2"><span class="badge ${riskBadge} me-1">${task.riskLevel}</span> <small>${task.title}</small></li>`;
+                            });
+                            html += '</ul></div>';
+                        }
+                        
+                        html += '</div>';
+                        insightContent.innerHTML = html;
+                    }
+                } catch (error) {
+                    insightContent.innerHTML = '<div class="alert alert-danger">Error cargando resumen IA</div>';
+                } finally {
+                    spinner.classList.add('d-none');
+                    refreshBtn.disabled = false;
+                }
+            }
+            
+            refreshBtn.addEventListener('click', () => loadUserInsight(true));
+            
+            // Cargar insight inicial
+            loadUserInsight(false);
+        });
+    </script>
+}

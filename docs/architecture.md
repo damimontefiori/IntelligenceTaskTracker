@@ -136,12 +136,80 @@ Servicios (lógica de negocio básica):
 - Fase 2: Dashboard Kanban + vista por recurso, filtros básicos.
 - Fase 3: Comentarios de tareas (append-only) + auditoría básica.
 - Fase 4: Mejoras UX (drag & drop), búsqueda, paginación liviana.
-- Fase 5: Autenticación/Autorización si se requiere, logging avanzado, RowVersion.
+- Fase 5: IA de avances (resúmenes por recurso y por tarea, alertas locales + análisis IA, botón "Actualizar resumen").
+- Fase 6: Autenticación/Autorización si se requiere, logging avanzado, RowVersion.
 
 ## 14) Consideraciones de calidad
 - Validaciones con DataAnnotations + reglas en servicios.
 - Manejo de errores simple con páginas de error y logging.
 - Nombres y mensajes en español.
 - Mantener bajo acoplamiento: controladores delgados, servicios con lógica.
+
+## 15) IA de avances (resúmenes y alertas)
+Objetivo
+- Generar resúmenes automáticos (por recurso y por tarea) a partir de los comentarios y metadatos de tareas.
+- Emitir alertas simples locales (fechas/actividad) y complementarlas con análisis de lenguaje de un proveedor de IA.
+
+Componentes
+- InsightsService (IInsightsService, AiInsightsService):
+  - GetUserInsightAsync(userId, forceRefresh=false)
+  - GetTaskInsightAsync(taskId, forceRefresh=false)
+  - Aplica reglas locales (OVERDUE, DUE_SOON, STALE) y combina con salida IA.
+- Proveedor IA intercambiable (IAiProvider):
+  - Implementaciones: Gemini (por defecto), Azure OpenAI (opcional).
+  - Configurable vía appsettings/variables de entorno.
+- Caché (opcional, recomendado):
+  - Tabla InsightsCache: Scope(User|Task), RefId, Model, ContentJson, CreatedAt, ExpiresAt.
+  - TTL configurable (p. ej., 12 h). Invalidación en: nuevo comentario, cambio de estado, cambio de dueDate.
+
+Flujo
+1) El controlador solicita el insight (usuario o tarea).
+2) InsightsService revisa caché; si expirado/ausente o forceRefresh, arma prompt y llama al proveedor IA.
+3) Combina alertas locales + resultado IA y retorna un contrato JSON tipado (Summary, Status, RiskLevel, Alerts, NextActions).
+4) La vista muestra panel con resumen, chips de alertas y botón "Actualizar resumen".
+
+UX y puntos de integración
+- Dashboard/ByResource: panel "Resumen IA del recurso" con botón "Actualizar".
+- Tasks/Details: panel "Resumen IA de la tarea" con alertas y próximos pasos.
+
+Seguridad y costos
+- No enviar datos sensibles innecesarios. Truncar comentarios a últimos N por tarea y máximo M tareas por recurso.
+- Timeouts cortos (8–12 s) con 1 reintento. Si falla, mostrar solo alertas locales.
+- Telemetría básica: tiempo de respuesta, tasa de fallos, aciertos de caché.
+
+Configuración
+- Se agrega una sección AI en configuración. Por defecto se usará Gemini.
+- Recomendado: no almacenar claves en el repositorio; usar variables de entorno o user-secrets.
+```json
+{
+  "AI": {
+    "Provider": "Gemini", // Gemini | AzureOpenAI
+    "Gemini": {
+      "ApiKey": ""
+    },
+    "AzureOpenAI": {
+      "Endpoint": "",
+      "Deployment": "",
+      "ApiKey": ""
+    },
+    "Limits": {
+      "MaxCommentsPerTask": 10,
+      "MaxTasksPerUser": 20,
+      "CacheTtlHours": 12,
+      "TimeoutSeconds": 12
+    }
+  }
+}
+```
+
+Modelo de datos
+- Nueva entidad: InsightsCache (si se usa caché persistente). Índices: (Scope, RefId), ExpiresAt.
+
+Roadmap técnico
+1) Agregar IInsightsService/AiInsightsService y proveedor IA (Gemini por defecto).
+2) Añadir InsightsCache (opcional) y migración.
+3) Integrar en Dashboard/ByResource y Tasks/Details (panel + botón "Actualizar resumen").
+4) Invalidar caché al agregar comentario o cambiar estado/dueDate.
+5) Telemetría mínima y manejo de errores/timeout.
 
 Esta propuesta prioriza la claridad y el menor número de piezas para empezar rápido, dejando puntos de extensión claros para crecer sin reescribir.

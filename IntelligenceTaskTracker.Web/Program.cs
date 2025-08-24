@@ -1,4 +1,5 @@
 using IntelligenceTaskTracker.Web.Data;
+using IntelligenceTaskTracker.Web.Services.AI;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -10,6 +11,25 @@ builder.Services.AddControllersWithViews();
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
     ?? "Server=(localdb)\\MSSQLLocalDB;Database=IntelligenceTaskTracker;Trusted_Connection=True;MultipleActiveResultSets=true;";
 builder.Services.AddDbContext<AppDbContext>(options => options.UseSqlServer(connectionString));
+
+// AI Services
+builder.Services.Configure<AiOptions>(builder.Configuration.GetSection("AI"));
+builder.Services.AddHttpClient<GeminiProvider>();
+builder.Services.AddHttpClient<OpenAIProvider>();
+builder.Services.AddScoped<GeminiProvider>();
+builder.Services.AddScoped<OpenAIProvider>();
+builder.Services.AddScoped<IAiProvider>(serviceProvider =>
+{
+    var config = serviceProvider.GetRequiredService<Microsoft.Extensions.Options.IOptions<AiOptions>>();
+    return config.Value.Provider.ToUpperInvariant() switch
+    {
+        "OPENAI" => serviceProvider.GetRequiredService<OpenAIProvider>(),
+        "GEMINI" => serviceProvider.GetRequiredService<GeminiProvider>(),
+        _ => serviceProvider.GetRequiredService<OpenAIProvider>() // Default to OpenAI
+    };
+});
+builder.Services.AddScoped<IInsightsService, AiInsightsService>();
+builder.Services.AddMemoryCache();
 
 // Ensure static web assets (scoped CSS, libs) are available when running via dll or non-standard hosts
 builder.WebHost.UseStaticWebAssets();

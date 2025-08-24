@@ -36,6 +36,18 @@
 - Interfaz sencilla, sin funcionalidades complejas ni configuraciones avanzadas.
 - Inspirada en aplicaciones como Microsoft Planner y Trello, pero con menor complejidad.
 
+## 7. Inteligencia y Resúmenes (IA)
+- La vista "Por Recurso" mostrará un resumen automático del avance del recurso, generado a partir del análisis de los comentarios de las tareas asignadas:
+  - Resumen general del progreso, riesgos y próximos pasos.
+  - Alertas simples basadas en fechas y actividad (p. ej., DUE_SOON, OVERDUE, STALE) aplicadas por reglas locales.
+- La vista "Detalles de Tarea" mostrará un resumen por tarea con:
+  - Estado estimado (OnTrack, AtRisk, OffTrack), riesgos y próximos pasos.
+  - Alertas simples por fechas/actividad.
+- El proveedor de IA será configurable. Por defecto: Gemini.
+- El análisis considerará un subconjunto acotado de datos para eficiencia (p. ej., últimos N comentarios por tarea y hasta M tareas por recurso).
+- Debe existir un botón "Actualizar resumen" para regenerar el análisis bajo demanda.
+- En caso de error o timeout del proveedor de IA, se mostrarán solo las alertas locales y un mensaje "Resumen IA no disponible".
+- El resumen es informativo; no modifica datos de negocio ni permite edición desde estos paneles.
 
 **Notas:**  
 - No se requiere integración con otras plataformas.
